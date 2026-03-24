@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Comparison</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .comparison {
+      position: relative;
+      display: inline-block;
+      cursor: ew-resize;
+      user-select: none;
+      line-height: 0;
+    }
+
+    .comparison img {
+      display: block;
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+
+    .img-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      width: 50%;
+    }
+
+    .img-top img {
+      /* image must match base image exactly */
+    }
+
+    .divider {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 3px;
+      background: #fff;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .grip {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 44px;
+      height: 44px;
+      background: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      cursor: ew-resize;
+      pointer-events: all;
+    }
+
+    .grip svg {
+      width: 20px;
+      height: 20px;
+      fill: #333;
+    }
+  </style>
+</head>
+<body>
+
+<div class="comparison" id="comparison">
+  <!-- Bottom image (Shot_02) -->
+  <img id="imgBase" src="Shot_02.png" alt="Image 2">
+
+  <!-- Top image (Shot_01) clipped by width -->
+  <div class="img-top" id="imgTop">
+    <img id="imgTopImg" src="Shot_01.png" alt="Image 1">
+  </div>
+
+  <!-- Slider line + grip -->
+  <div class="divider" id="divider">
+    <div class="grip" id="grip">
+      <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 4l-4 6 4 6V4zm6 0v12l4-6-4-6z"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+  const comparison = document.getElementById('comparison');
+  const imgTop = document.getElementById('imgTop');
+  const divider = document.getElementById('divider');
+  let dragging = false;
+
+  function setPosition(x) {
+    const rect = comparison.getBoundingClientRect();
+    let pct = (x - rect.left) / rect.width;
+    pct = Math.max(0, Math.min(1, pct));
+    const pctStr = (pct * 100).toFixed(2) + '%';
+    imgTop.style.width = pctStr;
+    divider.style.left = pctStr;
+  }
+
+  // Match top image width to base image once loaded
+  window.addEventListener('load', () => {
+    const base = document.getElementById('imgBase');
+    const topImg = document.getElementById('imgTopImg');
+    topImg.style.width = base.offsetWidth + 'px';
+    topImg.style.height = base.offsetHeight + 'px';
+  });
+
+  document.getElementById('grip').addEventListener('mousedown', (e) => {
+    dragging = true;
+    e.preventDefault();
+  });
+
+  // Also allow dragging anywhere on the comparison bar
+  comparison.addEventListener('mousedown', (e) => {
+    dragging = true;
+    setPosition(e.clientX);
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    setPosition(e.clientX);
+  });
+
+  window.addEventListener('mouseup', () => { dragging = false; });
+
+  // Touch support
+  comparison.addEventListener('touchstart', (e) => {
+    dragging = true;
+    setPosition(e.touches[0].clientX);
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    setPosition(e.touches[0].clientX);
+  }, { passive: true });
+
+  window.addEventListener('touchend', () => { dragging = false; });
+</script>
+
+</body>
+</html>
