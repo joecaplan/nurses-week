@@ -18,60 +18,60 @@
     .comparison {
       position: relative;
       display: inline-block;
-      cursor: ew-resize;
       user-select: none;
       line-height: 0;
+      cursor: ew-resize;
     }
 
-    .comparison img {
+    .comparison img.base {
       display: block;
       max-width: 90vw;
       max-height: 90vh;
     }
 
-    .img-top {
+    .overlay {
       position: absolute;
       top: 0;
       left: 0;
-      overflow: hidden;
-      width: 50%;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
 
-    .img-top img {
-      /* image must match base image exactly */
+    .overlay img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
     }
 
-    .divider {
+    .divider-svg {
       position: absolute;
       top: 0;
-      bottom: 0;
-      left: 50%;
-      width: 3px;
-      background: #fff;
-      transform: translateX(-50%);
+      left: 0;
+      width: 100%;
+      height: 100%;
       pointer-events: none;
+      overflow: visible;
     }
 
     .grip {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       background: #fff;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.6);
       cursor: ew-resize;
-      pointer-events: all;
+      transform: translate(-50%, -50%);
     }
 
     .grip svg {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       fill: #333;
     }
   </style>
@@ -79,62 +79,79 @@
 <body>
 
 <div class="comparison" id="comparison">
-  <!-- Bottom image (Shot_02) -->
-  <img id="imgBase" src="Shot_02.png" alt="Image 2">
+  <!-- Base image (right side): Shot_01 -->
+  <img class="base" id="imgBase" src="Shot_01.png" alt="Image 1">
 
-  <!-- Top image (Shot_01) clipped by width -->
-  <div class="img-top" id="imgTop">
-    <img id="imgTopImg" src="Shot_01.png" alt="Image 1">
+  <!-- Overlay image (left side, diagonally clipped): Shot_02 -->
+  <div class="overlay" id="overlay">
+    <img src="Shot_02.png" alt="Image 2">
   </div>
 
-  <!-- Slider line + grip -->
-  <div class="divider" id="divider">
-    <div class="grip" id="grip">
-      <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-        <path d="M7 4l-4 6 4 6V4zm6 0v12l4-6-4-6z"/>
-      </svg>
-    </div>
+  <!-- Diagonal divider line -->
+  <svg class="divider-svg" id="dividerSvg">
+    <line id="dividerLine" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  </svg>
+
+  <!-- Grip handle -->
+  <div class="grip" id="grip">
+    <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+      <path d="M7 4l-4 6 4 6V4zm6 0v12l4-6-4-6z"/>
+    </svg>
   </div>
 </div>
 
 <script>
   const comparison = document.getElementById('comparison');
-  const imgTop = document.getElementById('imgTop');
-  const divider = document.getElementById('divider');
+  const overlay    = document.getElementById('overlay');
+  const dividerLine = document.getElementById('dividerLine');
+  const grip       = document.getElementById('grip');
+
+  let pos = 0.5;      // slider position 0–1
+  const DIAG = 0.12;  // diagonal tilt as fraction of width
   let dragging = false;
 
-  function setPosition(x) {
-    const rect = comparison.getBoundingClientRect();
-    let pct = (x - rect.left) / rect.width;
-    pct = Math.max(0, Math.min(1, pct));
-    const pctStr = (pct * 100).toFixed(2) + '%';
-    imgTop.style.width = pctStr;
-    divider.style.left = pctStr;
+  function update() {
+    const W = comparison.offsetWidth;
+    const H = comparison.offsetHeight;
+
+    // Diagonal line: tilts from top-right to bottom-left
+    // top point is shifted right, bottom point shifted left
+    const topX    = (pos + DIAG) * W;
+    const bottomX = (pos - DIAG) * W;
+
+    // Clip the overlay to the left of the diagonal
+    overlay.style.clipPath =
+      `polygon(0px 0px, ${topX}px 0px, ${bottomX}px ${H}px, 0px ${H}px)`;
+
+    // Draw the divider line
+    dividerLine.setAttribute('x1', topX);
+    dividerLine.setAttribute('y1', 0);
+    dividerLine.setAttribute('x2', bottomX);
+    dividerLine.setAttribute('y2', H);
+
+    // Grip sits at the midpoint of the diagonal line
+    grip.style.left = (pos * W) + 'px';
+    grip.style.top  = (H / 2) + 'px';
   }
 
-  // Match top image width to base image once loaded
-  window.addEventListener('load', () => {
-    const base = document.getElementById('imgBase');
-    const topImg = document.getElementById('imgTopImg');
-    topImg.style.width = base.offsetWidth + 'px';
-    topImg.style.height = base.offsetHeight + 'px';
-  });
+  function setPos(clientX) {
+    const rect = comparison.getBoundingClientRect();
+    pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    update();
+  }
 
-  document.getElementById('grip').addEventListener('mousedown', (e) => {
-    dragging = true;
-    e.preventDefault();
-  });
+  window.addEventListener('load', update);
+  window.addEventListener('resize', update);
 
-  // Also allow dragging anywhere on the comparison bar
   comparison.addEventListener('mousedown', (e) => {
     dragging = true;
-    setPosition(e.clientX);
+    setPos(e.clientX);
     e.preventDefault();
   });
 
   window.addEventListener('mousemove', (e) => {
     if (!dragging) return;
-    setPosition(e.clientX);
+    setPos(e.clientX);
   });
 
   window.addEventListener('mouseup', () => { dragging = false; });
@@ -142,12 +159,12 @@
   // Touch support
   comparison.addEventListener('touchstart', (e) => {
     dragging = true;
-    setPosition(e.touches[0].clientX);
+    setPos(e.touches[0].clientX);
   }, { passive: true });
 
   window.addEventListener('touchmove', (e) => {
     if (!dragging) return;
-    setPosition(e.touches[0].clientX);
+    setPos(e.touches[0].clientX);
   }, { passive: true });
 
   window.addEventListener('touchend', () => { dragging = false; });
